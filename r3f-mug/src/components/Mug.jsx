@@ -35,7 +35,7 @@ export function Mug({ selectedPart, onColorChange, ...props }) {
     Plane012: '#ffffff',
     Plane012_1: '#ffffff',
     Plane005: '#ffffff',
-    Plane005_1: '#ffffff',
+    Tounge: '#ffffff',
   });
 
   // Runtime controls with leva for texture adjustments
@@ -71,11 +71,23 @@ export function Mug({ selectedPart, onColorChange, ...props }) {
     const partNames = [
       'Accent_inside', 'Accent_outside', 'Base', 'Cover', 'Cylinder', 'Cylinder001',
       'Heel', 'Lace', 'Line_inside', 'Line_outside', 'Logo_inside', 'Logo_outside',
-      'MidSode001', 'OutSode', 'Tip', 'Plane012', 'Plane012_1', 'Plane005', 'Plane005_1'
+      'MidSode001', 'OutSode', 'Tip', 'Plane012', 'Plane012_1', 'Plane005', 'Tounge'
     ];
 
     partNames.forEach((partName) => {
-      const originalMaterial = materials[partName === 'Heel' ? '' : `Material.${String(partName === 'Base' ? '003' : partName === 'Cover' ? '011' : partName === 'Cylinder' ? '015' : partName === 'Cylinder001' ? '014' : partName === 'Lace' ? '013' : partName === 'OutSode' ? '009' : partName === 'Plane005' ? '012' : partName === 'Plane005_1' ? '016' : '004').padStart(3, '0')}`] || materials['Material.005'];
+      const originalMaterial = materials[partName === 'Heel' ? '' : `Material.${String(partName === 'Base' ? '003' : 
+        partName === 'Accent_inside' ? '003' : partName === 'Accent_outside' ? '003' :
+        partName === 'Logo_inside' ? '003' : partName == 'Logo_outside' ? '003' :
+        partName === 'Plane012' ? '003' : partName == 'Plane012_1' ? '003' :
+        partName === 'Tip' ? '003':
+        partName === 'Cover' ? '011' : 
+        partName === 'Cylinder' ? '015' : 
+        partName === 'Cylinder001' ? '014' :
+        partName === 'Tounge' ? '003' :
+        partName === 'Lace' ? '013' : 
+        partName === 'OutSode' ? '003' : 
+        partName === 'Plane005' ? '012' : 
+        partName === 'Plane005_1' ? '016' : '004').padStart(3, '0')}`] || materials['Material.005'];
       mats[partName] = new THREE.MeshStandardMaterial({
         ...originalMaterial,
         color: new THREE.Color(partColors[partName]),
@@ -85,11 +97,8 @@ export function Mug({ selectedPart, onColorChange, ...props }) {
 
     return mats;
   }, [materials, partColors, texture]);
-
-  // Callback to update the color of the selected part
   const updatePartColor = (color) => {
-    if (selectedPart) {
-      // Update colors for grouped parts
+    if (selectedPart) {      
       if (selectedPart === 'Accent') {
         setPartColors((prev) => ({
           ...prev,
@@ -111,8 +120,7 @@ export function Mug({ selectedPart, onColorChange, ...props }) {
           Cylinder001: color,
           Plane012: color,
           Plane012_1: color,
-          Plane005: color,
-          Plane005_1: color,
+          Plane005: color              
         }));
       } else {
         setPartColors((prev) => ({
@@ -122,12 +130,9 @@ export function Mug({ selectedPart, onColorChange, ...props }) {
       }
     }
   };
-
-  // Expose the color update function to the parent
   React.useEffect(() => {
     onColorChange(updatePartColor);
   }, [selectedPart, onColorChange]);
-
   return (
     <group {...props} dispose={null}>
       <mesh geometry={nodes.Accent_inside.geometry} material={partMaterials['Accent_inside']} />
@@ -148,7 +153,7 @@ export function Mug({ selectedPart, onColorChange, ...props }) {
       <mesh geometry={nodes.Plane012.geometry} material={partMaterials['Plane012']} />
       <mesh geometry={nodes.Plane012_1.geometry} material={partMaterials['Plane012_1']} />
       <mesh geometry={nodes.Plane005.geometry} material={partMaterials['Plane005']} />
-      <mesh geometry={nodes.Plane005_1.geometry} material={partMaterials['Plane005_1']} />
+      <mesh geometry={nodes.Plane005_1.geometry} material={partMaterials['Tounge']} />
     </group>
   );
 }

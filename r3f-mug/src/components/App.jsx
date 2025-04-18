@@ -1,30 +1,42 @@
+
 import React, { useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { OrbitControls, Environment } from '@react-three/drei';
 import { Mug } from './Mug';
-import './App.css';
+import { HokaMug } from './HokaMug';
+import '../style.css'; // Updated to match src/style.css
 
 function App() {
-  // Define the components list for the UI
-  const components = [
+  const [selectedModel, setSelectedModel] = useState('Adidas');
+
+  const adidasComponents = [
     { name: 'Base', value: 'Base' },
     { name: 'Heel', value: 'Heel' },
     { name: 'Lace', value: 'Lace' },
     { name: 'Outsole', value: 'OutSode' },
     { name: 'Midsole', value: 'MidSode001' },
     { name: 'Tip', value: 'Tip' },
-    { name: 'Accent', value: 'Accent' }, // Grouped: Accent_inside, Accent_outside, Line_inside, Line_outside
-    { name: 'Logo', value: 'Logo' }, // Grouped: Logo_inside, Logo_outside
-    { name: 'Details', value: 'Details' }, // Grouped: Cylinder, Cylinder001, Plane012, Plane012_1, Plane005, Plane005_1
+    { name: 'Accent', value: 'Accent' },
+    { name: 'Logo', value: 'Logo' },
+    { name: 'Tounge', value: 'Tounge' },
+    { name: 'Details', value: 'Details' },
   ];
 
-  // State to track the selected component index
+  const hokaComponents = [
+    { name: 'Base', value: 'Base' },
+    { name: 'Cover', value: 'Cover' },
+    { name: 'Inside', value: 'Inside' },
+    { name: 'Lace', value: 'Lace' },
+    { name: 'Logo', value: 'Logo' },
+    { name: 'Midsole', value: 'MidSode' },
+    { name: 'Outsole', value: 'OutSode' },
+    { name: 'Tongue', value: 'Tounge' },
+  ];
+
+  const components = selectedModel === 'Adidas' ? adidasComponents : hokaComponents;
+
   const [selectedComponentIndex, setSelectedComponentIndex] = useState(0);
-
-  // State to store the updatePartColor function from Mug
   const [updatePartColor, setUpdatePartColor] = useState(() => () => {});
-
-  // Define the color swatches with their labels
   const colors = [
     { name: 'Black', value: '#000000' },
     { name: 'White', value: '#ffffff' },
@@ -37,22 +49,17 @@ function App() {
     { name: 'Pink', value: '#ff69b4' },
     { name: 'University Red', value: '#c8102e' },
   ];
-
-  // State to track the selected color for UI feedback
   const [selectedColor, setSelectedColor] = useState(colors[0].value);
 
-  // Handler to update the color of the selected part
   const handleColorClick = (colorValue) => {
     setSelectedColor(colorValue);
     updatePartColor(colorValue);
   };
 
-  // Handler to receive the updatePartColor function from Mug
   const handleColorChange = (updateFunc) => {
     setUpdatePartColor(() => updateFunc);
   };
 
-  // Handlers for navigation arrows
   const handlePrevComponent = () => {
     setSelectedComponentIndex((prev) => (prev === 0 ? components.length - 1 : prev - 1));
   };
@@ -61,14 +68,33 @@ function App() {
     setSelectedComponentIndex((prev) => (prev === components.length - 1 ? 0 : prev + 1));
   };
 
-  // Handler for selecting a component from the list
   const handleComponentClick = (index) => {
     setSelectedComponentIndex(index);
   };
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-      {/* Components UI */}
+    <div className="container">
+      <div className="model-selector">
+        <button
+          className={selectedModel === 'Adidas' ? 'active' : ''}
+          onClick={() => {
+            setSelectedModel('Adidas');
+            setSelectedComponentIndex(0);
+          }}
+        >
+          Adidas
+        </button>
+        <button
+          className={selectedModel === 'Hoka' ? 'active' : ''}
+          onClick={() => {
+            setSelectedModel('Hoka');
+            setSelectedComponentIndex(0);
+          }}
+        >
+          Hoka
+        </button>
+      </div>
+
       <div className="components-container">
         <h3>COMPONENTS</h3>
         <ul className="components-list">
@@ -85,7 +111,6 @@ function App() {
         </ul>
       </div>
 
-      {/* Navigation and Label */}
       <div className="navigation-container">
         <button className="nav-arrow" onClick={handlePrevComponent}>←</button>
         <span className="nav-label">
@@ -94,19 +119,29 @@ function App() {
         <button className="nav-arrow" onClick={handleNextComponent}>→</button>
       </div>
 
-      {/* Canvas for the 3D model */}
-      <Canvas style={{ width: '100%', height: '50%' }}>
+      <Canvas 
+      style={{ width: '100%', height: '50%' }}
+      camera={{ fov: 5, position: [0, 0, 4], near: 0.1, far: 100 }}
+      >
         <ambientLight intensity={0.5} />
         <directionalLight position={[10, 10, 5]} intensity={1} />
-        <Mug
-          position={[0, 0, 0]}
-          selectedPart={components[selectedComponentIndex].value}
-          onColorChange={handleColorChange}
-        />
+        {selectedModel === 'Adidas' ? (
+          <Mug
+            position={[0, 0, 0]}
+            selectedPart={components[selectedComponentIndex].value}
+            onColorChange={handleColorChange}
+          />
+        ) : (
+          <HokaMug
+            position={[0, 0, 0]}
+            selectedPart={components[selectedComponentIndex].value}
+            onColorChange={handleColorChange}
+          />
+        )}
         <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
+        <Environment preset="city" />
       </Canvas>
 
-      {/* Color swatches */}
       <div className="swatches-container">
         {colors.map((color) => (
           <div key={color.name} className="swatch-wrapper">
