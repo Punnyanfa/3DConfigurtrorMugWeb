@@ -10,6 +10,8 @@ import '../style.css';
 function App() {
   const [selectedModel, setSelectedModel] = useState('Adidas');
   const [customTexture, setCustomTexture] = useState(null);
+  const [designData, setDesignData] = useState({ model: 'Adidas', colors: {}, textures: {} });
+  const [showPopup, setShowPopup] = useState(false);
 
   const adidasComponents = [
     { name: 'Base', value: 'Base' },
@@ -67,7 +69,7 @@ function App() {
           texture.encoding = THREE.sRGBEncoding;
           texture.needsUpdate = true;
           console.log('Texture uploaded:', texture);
-          setCustomTexture(texture);
+          setCustomTexture({ texture, fileName: file.name });
           updatePartTexture(components[selectedComponentIndex].value, texture);
         };
       };
@@ -82,8 +84,8 @@ function App() {
   };
 
   const handleRemoveTexture = () => {
-    setCustomTexture(null);
     updatePartTexture(components[selectedComponentIndex].value, null);
+    setCustomTexture(null);
     console.log('Texture removed for:', components[selectedComponentIndex].value);
   };
 
@@ -100,6 +102,38 @@ function App() {
     setUpdatePartTexture(() => updateFunc);
   };
 
+  const handleDesignUpdate = (data) => {
+    setDesignData((prev) => ({
+      ...prev,
+      model: selectedModel,
+      colors: data.colors || prev.colors,
+      textures: data.textures || prev.textures,
+    }));
+  };
+
+  const handleComplete = () => {
+    setShowPopup(true);
+  };
+
+  const handleCopyDesignData = () => {
+    const output = JSON.stringify(designData, (key, value) => {
+      if (value instanceof THREE.Texture) {
+        return { fileName: customTexture?.fileName || 'unknown' };
+      }
+      return value;
+    }, 2);
+    navigator.clipboard.writeText(output).then(() => {
+      alert('Design data copied to clipboard!');
+    }).catch((err) => {
+      console.error('Failed to copy:', err);
+      alert('Failed to copy design data.');
+    });
+  };
+
+  const handleClosePopup = () => {
+    setShowPopup(false);
+  };
+
   const handlePrevComponent = () => {
     setSelectedComponentIndex((prev) => (prev === 0 ? components.length - 1 : prev - 1));
   };
@@ -111,6 +145,8 @@ function App() {
   const handleComponentClick = (index) => {
     setSelectedComponentIndex(index);
   };
+
+  const isTextureApplied = designData.textures[components[selectedComponentIndex].value] !== null;
 
   return (
     <div className="container">
@@ -170,7 +206,7 @@ function App() {
         <button
           className="remove-texture-btn"
           onClick={handleRemoveTexture}
-          disabled={!customTexture}
+          disabled={!isTextureApplied}
         >
           Xóa Texture
         </button>
@@ -182,13 +218,13 @@ function App() {
       >
         <ambientLight intensity={0.5} />
         <directionalLight position={[10, 10, 5]} intensity={1} />
-公有
         {selectedModel === 'Adidas' ? (
           <Mug
             position={[0, 0, 0]}
             selectedPart={components[selectedComponentIndex].value}
             onColorChange={handleColorChange}
             onTextureChange={handleTextureChange}
+            onDesignUpdate={handleDesignUpdate}
           />
         ) : (
           <HokaMug
@@ -196,6 +232,7 @@ function App() {
             selectedPart={components[selectedComponentIndex].value}
             onColorChange={handleColorChange}
             onTextureChange={handleTextureChange}
+            onDesignUpdate={handleDesignUpdate}
           />
         )}
         <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
@@ -216,6 +253,39 @@ function App() {
           </div>
         ))}
       </div>
+
+      <div className="complete-container">
+        <button className="complete-btn" onClick={handleComplete}>
+          Hoàn thành
+        </button>
+      </div>
+
+      {showPopup && (
+        <div className="popup-overlay">
+          <div className="popup-content">
+            <h3>Design Data</h3>
+            <textarea
+              readOnly
+              value={JSON.stringify(designData, (key, value) => {
+                if (value instanceof THREE.Texture) {
+                  return { fileName: customTexture?.fileName || 'unknown' };
+                }
+                return value;
+              }, 2)}
+              rows={15}
+              style={{ width: '100%', fontFamily: 'monospace', resize: 'none' }}
+            />
+            <div className="popup-buttons">
+              <button className="copy-btn" onClick={handleCopyDesignData}>
+                Sao chép
+              </button>
+              <button className="close-btn" onClick={handleClosePopup}>
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { useControls } from 'leva';
 
-export function Mug({ selectedPart, onColorChange, onTextureChange, ...props }) {
+export function Mug({ selectedPart, onColorChange, onTextureChange, onDesignUpdate, ...props }) {
   const { nodes, materials } = useGLTF('/model/Adidasrunningshoes.glb');
 
   const [partColors, setPartColors] = useState({
@@ -61,6 +61,11 @@ export function Mug({ selectedPart, onColorChange, onTextureChange, ...props }) 
     brightness: { value: 2.0, min: 0.5, max: 2, step: 0.01 },
   });
 
+  const textureSettings = useMemo(
+    () => ({ scale, repeatX, repeatY, offsetX, offsetY, rotation, brightness }),
+    [scale, repeatX, repeatY, offsetX, offsetY, rotation, brightness]
+  );
+
   const partMaterials = useMemo(() => {
     const mats = {};
     const partNames = [
@@ -104,7 +109,7 @@ export function Mug({ selectedPart, onColorChange, onTextureChange, ...props }) 
       mats[partName] = new THREE.MeshStandardMaterial({
         ...originalMaterial,
         color: new THREE.Color(partColors[partName]),
-        map: partName === 'Heel' ? texture : null,
+        map: texture,
       });
     });
 
@@ -114,33 +119,46 @@ export function Mug({ selectedPart, onColorChange, onTextureChange, ...props }) 
   const updatePartColor = (color) => {
     if (selectedPart) {
       if (selectedPart === 'Accent') {
-        setPartColors((prev) => ({
-          ...prev,
-          Accent_inside: color,
-          Accent_outside: color,
-          Line_inside: color,
-          Line_outside: color,
-        }));
+        setPartColors((prev) => {
+          const newColors = {
+            ...prev,
+            Accent_inside: color,
+            Accent_outside: color,
+            Line_inside: color,
+            Line_outside: color,
+          };
+          onDesignUpdate({ colors: newColors, textures: partTextures });
+          return newColors;
+        });
       } else if (selectedPart === 'Logo') {
-        setPartColors((prev) => ({
-          ...prev,
-          Logo_inside: color,
-          Logo_outside: color,
-        }));
+        setPartColors((prev) => {
+          const newColors = {
+            ...prev,
+            Logo_inside: color,
+            Logo_outside: color,
+          };
+          onDesignUpdate({ colors: newColors, textures: partTextures });
+          return newColors;
+        });
       } else if (selectedPart === 'Details') {
-        setPartColors((prev) => ({
-          ...prev,
-          Cylinder: color,
-          Cylinder001: color,
-          Plane012: color,
-          Plane012_1: color,
-          Plane005: color,
-        }));
+        setPartColors((prev) => {
+          const newColors = {
+            ...prev,
+            Cylinder: color,
+            Cylinder001: color,
+            Plane012: color,
+            Plane012_1: color,
+            Plane005: color,
+          };
+          onDesignUpdate({ colors: newColors, textures: partTextures });
+          return newColors;
+        });
       } else {
-        setPartColors((prev) => ({
-          ...prev,
-          [selectedPart]: color,
-        }));
+        setPartColors((prev) => {
+          const newColors = { ...prev, [selectedPart]: color };
+          onDesignUpdate({ colors: newColors, textures: partTextures });
+          return newColors;
+        });
       }
     }
   };
@@ -149,33 +167,62 @@ export function Mug({ selectedPart, onColorChange, onTextureChange, ...props }) 
     if (part) {
       console.log('Updating texture for', part, 'to:', texture);
       if (part === 'Accent') {
-        setPartTextures((prev) => ({
-          ...prev,
-          Accent_inside: texture,
-          Accent_outside: texture,
-          Line_inside: texture,
-          Line_outside: texture,
-        }));
+        setPartTextures((prev) => {
+          const newTextures = {
+            ...prev,
+            Accent_inside: texture,
+            Accent_outside: texture,
+            Line_inside: texture,
+            Line_outside: texture,
+          };
+          const texturesWithSettings = Object.keys(newTextures).reduce((acc, key) => {
+            acc[key] = newTextures[key] ? { texture: newTextures[key], settings: textureSettings } : null;
+            return acc;
+          }, {});
+          onDesignUpdate({ colors: partColors, textures: texturesWithSettings });
+          return newTextures;
+        });
       } else if (part === 'Logo') {
-        setPartTextures((prev) => ({
-          ...prev,
-          Logo_inside: texture,
-          Logo_outside: texture,
-        }));
+        setPartTextures((prev) => {
+          const newTextures = {
+            ...prev,
+            Logo_inside: texture,
+            Logo_outside: texture,
+          };
+          const texturesWithSettings = Object.keys(newTextures).reduce((acc, key) => {
+            acc[key] = newTextures[key] ? { texture: newTextures[key], settings: textureSettings } : null;
+            return acc;
+          }, {});
+          onDesignUpdate({ colors: partColors, textures: texturesWithSettings });
+          return newTextures;
+        });
       } else if (part === 'Details') {
-        setPartTextures((prev) => ({
-          ...prev,
-          Cylinder: texture,
-          Cylinder001: texture,
-          Plane012: texture,
-          Plane012_1: texture,
-          Plane005: texture,
-        }));
+        setPartTextures((prev) => {
+          const newTextures = {
+            ...prev,
+            Cylinder: texture,
+            Cylinder001: texture,
+            Plane012: texture,
+            Plane012_1: texture,
+            Plane005: texture,
+          };
+          const texturesWithSettings = Object.keys(newTextures).reduce((acc, key) => {
+            acc[key] = newTextures[key] ? { texture: newTextures[key], settings: textureSettings } : null;
+            return acc;
+          }, {});
+          onDesignUpdate({ colors: partColors, textures: texturesWithSettings });
+          return newTextures;
+        });
       } else {
-        setPartTextures((prev) => ({
-          ...prev,
-          [part]: texture,
-        }));
+        setPartTextures((prev) => {
+          const newTextures = { ...prev, [part]: texture };
+          const texturesWithSettings = Object.keys(newTextures).reduce((acc, key) => {
+            acc[key] = newTextures[key] ? { texture: newTextures[key], settings: textureSettings } : null;
+            return acc;
+          }, {});
+          onDesignUpdate({ colors: partColors, textures: texturesWithSettings });
+          return newTextures;
+        });
       }
     }
   };
@@ -183,7 +230,8 @@ export function Mug({ selectedPart, onColorChange, onTextureChange, ...props }) 
   React.useEffect(() => {
     onColorChange(updatePartColor);
     onTextureChange(updatePartTexture);
-  }, [selectedPart, onColorChange, onTextureChange]);
+    onDesignUpdate({ colors: partColors, textures: partTextures });
+  }, [selectedPart, onColorChange, onTextureChange, onDesignUpdate, partColors, partTextures]);
 
   return (
     <group {...props} dispose={null}>

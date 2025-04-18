@@ -4,7 +4,7 @@ import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { useControls } from 'leva';
 
-export function HokaMug({ selectedPart, onColorChange, onTextureChange, ...props }) {
+export function HokaMug({ selectedPart, onColorChange, onTextureChange, onDesignUpdate, ...props }) {
   const { nodes, materials } = useGLTF('/model/HokaSneakerShoe.glb');
 
   const [partColors, setPartColors] = useState({
@@ -41,6 +41,11 @@ export function HokaMug({ selectedPart, onColorChange, onTextureChange, ...props
     brightness: { value: 2.0, min: 0.5, max: 5, step: 0.01 },
   });
 
+  const textureSettings = useMemo(
+    () => ({ scale, repeatX, repeatY, offsetX, offsetY, rotation, brightness }),
+    [scale, repeatX, repeatY, offsetX, offsetY, rotation, brightness]
+  );
+
   const partMaterials = useMemo(() => {
     const mats = {};
     const partNames = [
@@ -72,7 +77,7 @@ export function HokaMug({ selectedPart, onColorChange, onTextureChange, ...props
       mats[partName] = new THREE.MeshStandardMaterial({
         ...originalMaterial,
         color: new THREE.Color(partColors[partName]),
-        map: partName === 'Base' ? texture : null,
+        map: texture,
       });
     });
 
@@ -81,27 +86,34 @@ export function HokaMug({ selectedPart, onColorChange, onTextureChange, ...props
 
   const updatePartColor = (color) => {
     if (selectedPart) {
-      setPartColors((prev) => ({
-        ...prev,
-        [selectedPart]: color,
-      }));
+      setPartColors((prev) => {
+        const newColors = { ...prev, [selectedPart]: color };
+        onDesignUpdate({ colors: newColors, textures: partTextures });
+        return newColors;
+      });
     }
   };
 
   const updatePartTexture = (part, texture) => {
     if (part) {
       console.log('Updating texture for', part, 'to:', texture);
-      setPartTextures((prev) => ({
-        ...prev,
-        [part]: texture,
-      }));
+      setPartTextures((prev) => {
+        const newTextures = { ...prev, [part]: texture };
+        const texturesWithSettings = Object.keys(newTextures).reduce((acc, key) => {
+          acc[key] = newTextures[key] ? { texture: newTextures[key], settings: textureSettings } : null;
+          return acc;
+        }, {});
+        onDesignUpdate({ colors: partColors, textures: texturesWithSettings });
+        return newTextures;
+      });
     }
   };
 
   React.useEffect(() => {
     onColorChange(updatePartColor);
     onTextureChange(updatePartTexture);
-  }, [selectedPart, onColorChange, onTextureChange]);
+    onDesignUpdate({ colors: partColors, textures: partTextures });
+  }, [selectedPart, onColorChange, onTextureChange, onDesignUpdate, partColors, partTextures]);
 
   return (
     <group {...props} dispose={null}>
