@@ -1,21 +1,12 @@
+
 import React, { useState, useMemo } from 'react';
-import { useGLTF, useTexture } from '@react-three/drei';
+import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { useControls } from 'leva';
 
-export function Mug({ selectedPart, onColorChange, ...props }) {
+export function Mug({ selectedPart, onColorChange, onTextureChange, ...props }) {
   const { nodes, materials } = useGLTF('/model/Adidasrunningshoes.glb');
-  const texture = useTexture('/texture/Umeko.jpg', (tex) => {
-    console.log('Texture loaded:', tex);
-  }, (err) => {
-    console.error('Texture failed to load:', err);
-  });
 
-  // Configure texture properties
-  texture.flipY = false;
-  texture.encoding = THREE.sRGBEncoding;
-
-  // State to track the color of each part
   const [partColors, setPartColors] = useState({
     Accent_inside: '#ffffff',
     Accent_outside: '#ffffff',
@@ -38,7 +29,28 @@ export function Mug({ selectedPart, onColorChange, ...props }) {
     Tounge: '#ffffff',
   });
 
-  // Runtime controls with leva for texture adjustments
+  const [partTextures, setPartTextures] = useState({
+    Accent_inside: null,
+    Accent_outside: null,
+    Base: null,
+    Cover: null,
+    Cylinder: null,
+    Cylinder001: null,
+    Heel: null,
+    Lace: null,
+    Line_inside: null,
+    Line_outside: null,
+    Logo_inside: null,
+    Logo_outside: null,
+    MidSode001: null,
+    OutSode: null,
+    Tip: null,
+    Plane012: null,
+    Plane012_1: null,
+    Plane005: null,
+    Tounge: null,
+  });
+
   const { repeatX, repeatY, offsetX, offsetY, rotation, brightness, scale } = useControls('Texture', {
     scale: { value: 1, min: 0.1, max: 10, step: 0.1 },
     repeatX: { value: 1.1, min: 0.1, max: 10, step: 0.1 },
@@ -49,23 +61,6 @@ export function Mug({ selectedPart, onColorChange, ...props }) {
     brightness: { value: 2.0, min: 0.5, max: 2, step: 0.01 },
   });
 
-  // Apply texture adjustments
-  const adjustedRepeatX = repeatX * scale;
-  const adjustedRepeatY = repeatY * scale;
-  texture.repeat.set(adjustedRepeatX, adjustedRepeatY);
-  texture.offset.set(offsetX, offsetY);
-  texture.rotation = rotation;
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-
-  // Create a base material for the heel with texture
-  const heelMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-    map: texture || null,
-    color: texture ? new THREE.Color(brightness, brightness, brightness) : '#ff0000',
-    roughness: materials['Material.005'].roughness || 0.5,
-    metalness: materials['Material.005'].metalness || 0,
-  }), [texture, brightness, materials]);
-
-  // Create a dictionary of materials for each part, using partColors
   const partMaterials = useMemo(() => {
     const mats = {};
     const partNames = [
@@ -75,19 +70,37 @@ export function Mug({ selectedPart, onColorChange, ...props }) {
     ];
 
     partNames.forEach((partName) => {
-      const originalMaterial = materials[partName === 'Heel' ? '' : `Material.${String(partName === 'Base' ? '003' : 
-        partName === 'Accent_inside' ? '003' : partName === 'Accent_outside' ? '003' :
-        partName === 'Logo_inside' ? '003' : partName == 'Logo_outside' ? '003' :
-        partName === 'Plane012' ? '003' : partName == 'Plane012_1' ? '003' :
-        partName === 'Tip' ? '003':
-        partName === 'Cover' ? '011' : 
-        partName === 'Cylinder' ? '015' : 
-        partName === 'Cylinder001' ? '014' :
-        partName === 'Tounge' ? '003' :
-        partName === 'Lace' ? '013' : 
-        partName === 'OutSode' ? '003' : 
-        partName === 'Plane005' ? '012' : 
-        partName === 'Plane005_1' ? '016' : '004').padStart(3, '0')}`] || materials['Material.005'];
+      const originalMaterial = materials[
+        partName === 'Heel' ? 'Material.005' :
+        `Material.${String(
+          partName === 'Base' ? '003' :
+          partName === 'Accent_inside' ? '003' :
+          partName === 'Accent_outside' ? '003' :
+          partName === 'Logo_inside' ? '003' :
+          partName === 'Logo_outside' ? '003' :
+          partName === 'Plane012' ? '003' :
+          partName === 'Plane012_1' ? '003' :
+          partName === 'Tip' ? '003' :
+          partName === 'Cover' ? '011' :
+          partName === 'Cylinder' ? '015' :
+          partName === 'Cylinder001' ? '014' :
+          partName === 'Tounge' ? '003' :
+          partName === 'Lace' ? '013' :
+          partName === 'OutSode' ? '003' :
+          partName === 'Plane005' ? '012' :
+          partName === 'Plane005_1' ? '016' : '004'
+        ).padStart(3, '0')}`
+      ] || materials['Material.005'];
+
+      const texture = partTextures[partName];
+      if (texture) {
+        texture.repeat.set(repeatX * scale, repeatY * scale);
+        texture.offset.set(offsetX, offsetY);
+        texture.rotation = rotation;
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.needsUpdate = true;
+      }
+
       mats[partName] = new THREE.MeshStandardMaterial({
         ...originalMaterial,
         color: new THREE.Color(partColors[partName]),
@@ -96,9 +109,10 @@ export function Mug({ selectedPart, onColorChange, ...props }) {
     });
 
     return mats;
-  }, [materials, partColors, texture]);
+  }, [materials, partColors, partTextures, repeatX, repeatY, offsetX, offsetY, rotation, scale]);
+
   const updatePartColor = (color) => {
-    if (selectedPart) {      
+    if (selectedPart) {
       if (selectedPart === 'Accent') {
         setPartColors((prev) => ({
           ...prev,
@@ -120,7 +134,7 @@ export function Mug({ selectedPart, onColorChange, ...props }) {
           Cylinder001: color,
           Plane012: color,
           Plane012_1: color,
-          Plane005: color              
+          Plane005: color,
         }));
       } else {
         setPartColors((prev) => ({
@@ -130,9 +144,47 @@ export function Mug({ selectedPart, onColorChange, ...props }) {
       }
     }
   };
+
+  const updatePartTexture = (part, texture) => {
+    if (part) {
+      console.log('Updating texture for', part, 'to:', texture);
+      if (part === 'Accent') {
+        setPartTextures((prev) => ({
+          ...prev,
+          Accent_inside: texture,
+          Accent_outside: texture,
+          Line_inside: texture,
+          Line_outside: texture,
+        }));
+      } else if (part === 'Logo') {
+        setPartTextures((prev) => ({
+          ...prev,
+          Logo_inside: texture,
+          Logo_outside: texture,
+        }));
+      } else if (part === 'Details') {
+        setPartTextures((prev) => ({
+          ...prev,
+          Cylinder: texture,
+          Cylinder001: texture,
+          Plane012: texture,
+          Plane012_1: texture,
+          Plane005: texture,
+        }));
+      } else {
+        setPartTextures((prev) => ({
+          ...prev,
+          [part]: texture,
+        }));
+      }
+    }
+  };
+
   React.useEffect(() => {
     onColorChange(updatePartColor);
-  }, [selectedPart, onColorChange]);
+    onTextureChange(updatePartTexture);
+  }, [selectedPart, onColorChange, onTextureChange]);
+
   return (
     <group {...props} dispose={null}>
       <mesh geometry={nodes.Accent_inside.geometry} material={partMaterials['Accent_inside']} />

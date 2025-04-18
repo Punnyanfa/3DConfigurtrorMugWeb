@@ -1,19 +1,11 @@
 
 import React, { useState, useMemo } from 'react';
-import { useGLTF, useTexture } from '@react-three/drei';
+import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { useControls } from 'leva';
 
-export function HokaMug({ selectedPart, onColorChange, ...props }) {
+export function HokaMug({ selectedPart, onColorChange, onTextureChange, ...props }) {
   const { nodes, materials } = useGLTF('/model/HokaSneakerShoe.glb');
-  const texture = useTexture('/texture/Umeko.jpg', (tex) => {
-    console.log('Texture loaded:', tex);
-  }, (err) => {
-    console.error('Texture failed to load:', err);
-  });
-
-  texture.flipY = false;
-  texture.encoding = THREE.sRGBEncoding;
 
   const [partColors, setPartColors] = useState({
     Base: '#ffffff',
@@ -27,6 +19,18 @@ export function HokaMug({ selectedPart, onColorChange, ...props }) {
     Tounge: '#ffffff',
   });
 
+  const [partTextures, setPartTextures] = useState({
+    Base: null,
+    Cover: null,
+    Inside: null,
+    Lace: null,
+    Logo: null,
+    MidSode: null,
+    OutSode: null,
+    Text: null,
+    Tounge: null,
+  });
+
   const { repeatX, repeatY, offsetX, offsetY, rotation, brightness, scale } = useControls('Texture', {
     scale: { value: 1, min: 0.1, max: 10, step: 0.1 },
     repeatX: { value: 1.1, min: 0.1, max: 10, step: 0.1 },
@@ -36,20 +40,6 @@ export function HokaMug({ selectedPart, onColorChange, ...props }) {
     rotation: { value: 0.24, min: -Math.PI, max: Math.PI, step: 0.01 },
     brightness: { value: 2.0, min: 0.5, max: 5, step: 0.01 },
   });
-
-  const adjustedRepeatX = repeatX * scale;
-  const adjustedRepeatY = repeatY * scale;
-  texture.repeat.set(adjustedRepeatX, adjustedRepeatY);
-  texture.offset.set(offsetX, offsetY);
-  texture.rotation = rotation;
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-
-  const baseMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-    map: texture || null,
-    color: texture ? new THREE.Color(brightness, brightness, brightness) : '#ff0000',
-    roughness: materials['Smooth Gold'].roughness || 0.5,
-    metalness: materials['Smooth Gold'].metalness || 0,
-  }), [texture, brightness, materials]);
 
   const partMaterials = useMemo(() => {
     const mats = {};
@@ -64,11 +54,21 @@ export function HokaMug({ selectedPart, onColorChange, ...props }) {
         partName === 'Inside' ? 'Perforated rubber' :
         partName === 'Lace' ? 'Black Jacket Lining - 01' :
         partName === 'Logo' ? 'Material.004' :
-        partName === 'MidSode' ? 'Perforated rubber' :
-        partName === 'OutSode' ? 'Gold Sheen' :
+        partName === 'MidSode' ? 'Gold Sheen' :
+        partName === 'OutSode' ? 'Material.002' :
         partName === 'Text' ? 'Material.003' :
         'Acoustic Foam'
       ];
+
+      const texture = partTextures[partName];
+      if (texture) {
+        texture.repeat.set(repeatX * scale, repeatY * scale);
+        texture.offset.set(offsetX, offsetY);
+        texture.rotation = rotation;
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.needsUpdate = true;
+      }
+
       mats[partName] = new THREE.MeshStandardMaterial({
         ...originalMaterial,
         color: new THREE.Color(partColors[partName]),
@@ -77,7 +77,7 @@ export function HokaMug({ selectedPart, onColorChange, ...props }) {
     });
 
     return mats;
-  }, [materials, partColors, texture]);
+  }, [materials, partColors, partTextures, repeatX, repeatY, offsetX, offsetY, rotation, scale]);
 
   const updatePartColor = (color) => {
     if (selectedPart) {
@@ -88,9 +88,20 @@ export function HokaMug({ selectedPart, onColorChange, ...props }) {
     }
   };
 
+  const updatePartTexture = (part, texture) => {
+    if (part) {
+      console.log('Updating texture for', part, 'to:', texture);
+      setPartTextures((prev) => ({
+        ...prev,
+        [part]: texture,
+      }));
+    }
+  };
+
   React.useEffect(() => {
     onColorChange(updatePartColor);
-  }, [selectedPart, onColorChange]);
+    onTextureChange(updatePartTexture);
+  }, [selectedPart, onColorChange, onTextureChange]);
 
   return (
     <group {...props} dispose={null}>
@@ -103,7 +114,6 @@ export function HokaMug({ selectedPart, onColorChange, ...props }) {
       <mesh geometry={nodes.OutSode.geometry} material={partMaterials['OutSode']} scale={0.019} />
       <mesh geometry={nodes.Text.geometry} material={partMaterials['Text']} scale={[-0.02, -0.018, -0.008]} />
       <mesh geometry={nodes.Tounge.geometry} material={partMaterials['Tounge']} scale={0.019} />
-      
     </group>
   );
 }

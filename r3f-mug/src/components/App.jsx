@@ -4,10 +4,12 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
 import { Mug } from './Mug';
 import { HokaMug } from './HokaMug';
-import '../style.css'; // Updated to match src/style.css
+import * as THREE from 'three';
+import '../style.css';
 
 function App() {
   const [selectedModel, setSelectedModel] = useState('Adidas');
+  const [customTexture, setCustomTexture] = useState(null);
 
   const adidasComponents = [
     { name: 'Base', value: 'Base' },
@@ -37,6 +39,7 @@ function App() {
 
   const [selectedComponentIndex, setSelectedComponentIndex] = useState(0);
   const [updatePartColor, setUpdatePartColor] = useState(() => () => {});
+  const [updatePartTexture, setUpdatePartTexture] = useState(() => () => {});
   const colors = [
     { name: 'Black', value: '#000000' },
     { name: 'White', value: '#ffffff' },
@@ -51,6 +54,39 @@ function App() {
   ];
   const [selectedColor, setSelectedColor] = useState(colors[0].value);
 
+  const handleTextureUpload = (event) => {
+    const file = event.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.src = e.target.result;
+        img.onload = () => {
+          const texture = new THREE.Texture(img);
+          texture.flipY = false;
+          texture.encoding = THREE.sRGBEncoding;
+          texture.needsUpdate = true;
+          console.log('Texture uploaded:', texture);
+          setCustomTexture(texture);
+          updatePartTexture(components[selectedComponentIndex].value, texture);
+        };
+      };
+      reader.onerror = () => {
+        console.error('Error reading file');
+        alert('Không thể đọc file hình ảnh. Vui lòng thử lại.');
+      };
+      reader.readAsDataURL(file);
+    } else {
+      alert('Vui lòng chọn một file hình ảnh hợp lệ (jpg, png, v.v.).');
+    }
+  };
+
+  const handleRemoveTexture = () => {
+    setCustomTexture(null);
+    updatePartTexture(components[selectedComponentIndex].value, null);
+    console.log('Texture removed for:', components[selectedComponentIndex].value);
+  };
+
   const handleColorClick = (colorValue) => {
     setSelectedColor(colorValue);
     updatePartColor(colorValue);
@@ -58,6 +94,10 @@ function App() {
 
   const handleColorChange = (updateFunc) => {
     setUpdatePartColor(() => updateFunc);
+  };
+
+  const handleTextureChange = (updateFunc) => {
+    setUpdatePartTexture(() => updateFunc);
   };
 
   const handlePrevComponent = () => {
@@ -119,23 +159,43 @@ function App() {
         <button className="nav-arrow" onClick={handleNextComponent}>→</button>
       </div>
 
-      <Canvas 
-      style={{ width: '100%', height: '50%' }}
-      camera={{ fov: 5, position: [0, 0, 4], near: 0.1, far: 100 }}
+      <div className="texture-upload">
+        <label htmlFor="texture-upload">Tải Texture:</label>
+        <input
+          id="texture-upload"
+          type="file"
+          accept="image/*"
+          onChange={handleTextureUpload}
+        />
+        <button
+          className="remove-texture-btn"
+          onClick={handleRemoveTexture}
+          disabled={!customTexture}
+        >
+          Xóa Texture
+        </button>
+      </div>
+
+      <Canvas
+        style={{ width: '100%', height: '50%' }}
+        camera={{ fov: 5, position: [0, 0, 4], near: 0.1, far: 100 }}
       >
         <ambientLight intensity={0.5} />
         <directionalLight position={[10, 10, 5]} intensity={1} />
+公有
         {selectedModel === 'Adidas' ? (
           <Mug
             position={[0, 0, 0]}
             selectedPart={components[selectedComponentIndex].value}
             onColorChange={handleColorChange}
+            onTextureChange={handleTextureChange}
           />
         ) : (
           <HokaMug
             position={[0, 0, 0]}
             selectedPart={components[selectedComponentIndex].value}
             onColorChange={handleColorChange}
+            onTextureChange={handleTextureChange}
           />
         )}
         <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
