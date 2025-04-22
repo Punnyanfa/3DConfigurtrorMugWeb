@@ -1,54 +1,54 @@
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { useControls } from 'leva';
 
-export function Mug({ selectedPart, onColorChange, onTextureChange, onDesignUpdate, ...props }) {
+export function Mug({ selectedPart, onColorChange, onTextureChange, onDesignUpdate, initialColors = {}, initialTextures = {}, ...props }) {
   const { nodes, materials } = useGLTF('/model/Adidasrunningshoes.glb');
+useGLTF.preload('/model/Adidasrunningshoes.glb');
 
   const [partColors, setPartColors] = useState({
-    Accent_inside: '#ffffff',
-    Accent_outside: '#ffffff',
-    Base: '#ffffff',
-    Cover: '#ffffff',
-    Cylinder: '#ffffff',
-    Cylinder001: '#ffffff',
-    Heel: '#ffffff',
-    Lace: '#ffffff',
-    Line_inside: '#ffffff',
-    Line_outside: '#ffffff',
-    Logo_inside: '#ffffff',
-    Logo_outside: '#ffffff',
-    MidSode001: '#ffffff',
-    OutSode: '#ffffff',
-    Tip: '#ffffff',
-    Plane012: '#ffffff',
-    Plane012_1: '#ffffff',
-    Plane005: '#ffffff',
-    Tounge: '#ffffff',
+    Accent_inside: initialColors.Accent_inside || '#ffffff',
+    Accent_outside: initialColors.Accent_outside || '#ffffff',
+    Base: initialColors.Base || '#ffffff',
+    Cover: initialColors.Cover || '#ffffff',
+    Cylinder: initialColors.Cylinder || '#ffffff',
+    Cylinder001: initialColors.Cylinder001 || '#ffffff',
+    Heel: initialColors.Heel || '#ffffff',
+    Lace: initialColors.Lace || '#ffffff',
+    Line_inside: initialColors.Line_inside || '#ffffff',
+    Line_outside: initialColors.Line_outside || '#ffffff',
+    Logo_inside: initialColors.Logo_inside || '#ffffff',
+    Logo_outside: initialColors.Logo_outside || '#ffffff',
+    MidSode001: initialColors.MidSode001 || '#ffffff',
+    OutSode: initialColors.OutSode || '#ffffff',
+    Tip: initialColors.Tip || '#ffffff',
+    Plane012: initialColors.Plane012 || '#ffffff',
+    Plane012_1: initialColors.Plane012_1 || '#ffffff',
+    Plane005: initialColors.Plane005 || '#ffffff',
+    Tounge: initialColors.Tounge || '#ffffff',
   });
 
   const [partTextures, setPartTextures] = useState({
-    Accent_inside: null,
-    Accent_outside: null,
-    Base: null,
-    Cover: null,
-    Cylinder: null,
-    Cylinder001: null,
-    Heel: null,
-    Lace: null,
-    Line_inside: null,
-    Line_outside: null,
-    Logo_inside: null,
-    Logo_outside: null,
-    MidSode001: null,
-    OutSode: null,
-    Tip: null,
-    Plane012: null,
-    Plane012_1: null,
-    Plane005: null,
-    Tounge: null,
+    Accent_inside: initialTextures.Accent_inside || null,
+    Accent_outside: initialTextures.Accent_outside || null,
+    Base: initialTextures.Base || null,
+    Cover: initialTextures.Cover || null,
+    Cylinder: initialTextures.Cylinder || null,
+    Cylinder001: initialTextures.Cylinder001 || null,
+    Heel: initialTextures.Heel || null,
+    Lace: initialTextures.Lace || null,
+    Line_inside: initialTextures.Line_inside || null,
+    Line_outside: initialTextures.Line_outside || null,
+    Logo_inside: initialTextures.Logo_inside || null,
+    Logo_outside: initialTextures.Logo_outside || null,
+    MidSode001: initialTextures.MidSode001 || null,
+    OutSode: initialTextures.OutSode || null,
+    Tip: initialTextures.Tip || null,
+    Plane012: initialTextures.Plane012 || null,
+    Plane012_1: initialTextures.Plane012_1 || null,
+    Plane005: initialTextures.Plane005 || null,
+    Tounge: initialTextures.Tounge || null,
   });
 
   const { repeatX, repeatY, offsetX, offsetY, rotation, brightness, scale } = useControls('Texture', {
@@ -227,7 +227,7 @@ export function Mug({ selectedPart, onColorChange, onTextureChange, onDesignUpda
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     onColorChange(updatePartColor);
     onTextureChange(updatePartTexture);
     onDesignUpdate({ colors: partColors, textures: partTextures });

@@ -1,34 +1,34 @@
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { useControls } from 'leva';
 
-export function HokaMug({ selectedPart, onColorChange, onTextureChange, onDesignUpdate, ...props }) {
+export function HokaMug({ selectedPart, onColorChange, onTextureChange, onDesignUpdate, initialColors = {}, initialTextures = {}, ...props }) {
   const { nodes, materials } = useGLTF('/model/HokaSneakerShoe.glb');
+useGLTF.preload('/model/HokaSneakerShoe.glb');
 
   const [partColors, setPartColors] = useState({
-    Base: '#ffffff',
-    Cover: '#ffffff',
-    Inside: '#ffffff',
-    Lace: '#ffffff',
-    Logo: '#ffffff',
-    MidSode: '#ffffff',
-    OutSode: '#ffffff',
-    Text: '#ffffff',
-    Tounge: '#ffffff',
+    Base: initialColors.Base || '#ffffff',
+    Cover: initialColors.Cover || '#ffffff',
+    Inside: initialColors.Inside || '#ffffff',
+    Lace: initialColors.Lace || '#ffffff',
+    Logo: initialColors.Logo || '#ffffff',
+    MidSode: initialColors.MidSode || '#ffffff',
+    OutSode: initialColors.OutSode || '#ffffff',
+    Text: initialColors.Text || '#ffffff',
+    Tounge: initialColors.Tounge || '#ffffff',
   });
 
   const [partTextures, setPartTextures] = useState({
-    Base: null,
-    Cover: null,
-    Inside: null,
-    Lace: null,
-    Logo: null,
-    MidSode: null,
-    OutSode: null,
-    Text: null,
-    Tounge: null,
+    Base: initialTextures.Base || null,
+    Cover: initialTextures.Cover || null,
+    Inside: initialTextures.Inside || null,
+    Lace: initialTextures.Lace || null,
+    Logo: initialTextures.Logo || null,
+    MidSode: initialTextures.MidSode || null,
+    OutSode: initialTextures.OutSode || null,
+    Text: initialTextures.Text || null,
+    Tounge: initialTextures.Tounge || null,
   });
 
   const { repeatX, repeatY, offsetX, offsetY, rotation, brightness, scale } = useControls('Texture', {
@@ -38,7 +38,7 @@ export function HokaMug({ selectedPart, onColorChange, onTextureChange, onDesign
     offsetX: { value: -0.01, min: -1, max: 1, step: 0.01 },
     offsetY: { value: -0.08, min: -1, max: 1, step: 0.01 },
     rotation: { value: 0.24, min: -Math.PI, max: Math.PI, step: 0.01 },
-    brightness: { value: 2.0, min: 0.5, max: 5, step: 0.01 },
+    brightness: { value: 2.0, min: 0.5, max: 2, step: 0.01 },
   });
 
   const textureSettings = useMemo(
@@ -109,7 +109,7 @@ export function HokaMug({ selectedPart, onColorChange, onTextureChange, onDesign
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     onColorChange(updatePartColor);
     onTextureChange(updatePartTexture);
     onDesignUpdate({ colors: partColors, textures: partTextures });

@@ -1,16 +1,22 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
 import { Mug } from './Mug';
 import { HokaMug } from './HokaMug';
 import * as THREE from 'three';
 import '../style.css';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 function App() {
-  const [selectedModel, setSelectedModel] = useState('Adidas');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const preloadedDesign = location.state?.designData || null;
+
+  const [selectedModel, setSelectedModel] = useState(preloadedDesign?.model || 'Adidas');
   const [customTexture, setCustomTexture] = useState(null);
-  const [designData, setDesignData] = useState({ model: 'Adidas', colors: {}, textures: {} });
+  const [designData, setDesignData] = useState(
+    preloadedDesign || { model: 'Adidas', colors: {}, textures: {} }
+  );
   const [showPopup, setShowPopup] = useState(false);
 
   const adidasComponents = [
@@ -69,7 +75,7 @@ function App() {
           texture.encoding = THREE.sRGBEncoding;
           texture.needsUpdate = true;
           console.log('Texture uploaded:', texture);
-          setCustomTexture({ texture, fileName: file.name });
+          setCustomTexture({ texture, fileName: file.name, dataURL: e.target.result });
           updatePartTexture(components[selectedComponentIndex].value, texture);
         };
       };
@@ -103,12 +109,38 @@ function App() {
   };
 
   const handleDesignUpdate = (data) => {
-    setDesignData((prev) => ({
-      ...prev,
-      model: selectedModel,
-      colors: data.colors || prev.colors,
-      textures: data.textures || prev.textures,
-    }));
+    setDesignData((prev) => {
+      const newTextures = {};
+      Object.keys(data.textures).forEach((key) => {
+        const textureData = data.textures[key];
+        if (textureData && textureData.texture) {
+          newTextures[key] = {
+            dataURL: customTexture?.dataURL || textureData.dataURL,
+            settings: textureData.settings,
+          };
+        } else {
+          newTextures[key] = null;
+        }
+      });
+      return {
+        ...prev,
+        model: selectedModel,
+        colors: data.colors || prev.colors,
+        textures: newTextures,
+      };
+    });
+  };
+
+  const saveDesign = () => {
+    const savedDesigns = JSON.parse(localStorage.getItem('savedDesigns') || '[]');
+    const newDesign = {
+      id: savedDesigns.length + 1,
+      timestamp: new Date().toISOString(),
+      data: designData,
+    };
+    savedDesigns.push(newDesign);
+    localStorage.setItem('savedDesigns', JSON.stringify(savedDesigns));
+    navigate('/library');
   };
 
   const handleComplete = () => {
@@ -118,7 +150,7 @@ function App() {
   const handleCopyDesignData = () => {
     const output = JSON.stringify(designData, (key, value) => {
       if (value instanceof THREE.Texture) {
-        return { fileName: customTexture?.fileName || 'unknown' };
+        return { fileName: customTexture?.fileName || 'unknown', dataURL: customTexture?.dataURL };
       }
       return value;
     }, 2);
@@ -225,6 +257,8 @@ function App() {
             onColorChange={handleColorChange}
             onTextureChange={handleTextureChange}
             onDesignUpdate={handleDesignUpdate}
+            initialColors={designData.colors}
+            initialTextures={designData.textures}
           />
         ) : (
           <HokaMug
@@ -233,6 +267,8 @@ function App() {
             onColorChange={handleColorChange}
             onTextureChange={handleTextureChange}
             onDesignUpdate={handleDesignUpdate}
+            initialColors={designData.colors}
+            initialTextures={designData.textures}
           />
         )}
         <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
@@ -268,7 +304,7 @@ function App() {
               readOnly
               value={JSON.stringify(designData, (key, value) => {
                 if (value instanceof THREE.Texture) {
-                  return { fileName: customTexture?.fileName || 'unknown' };
+                  return { fileName: customTexture?.fileName || 'unknown', dataURL: customTexture?.dataURL };
                 }
                 return value;
               }, 2)}
@@ -278,6 +314,9 @@ function App() {
             <div className="popup-buttons">
               <button className="copy-btn" onClick={handleCopyDesignData}>
                 Sao chép
+              </button>
+              <button className="save-btn" onClick={saveDesign}>
+                Lưu Thiết Kế
               </button>
               <button className="close-btn" onClick={handleClosePopup}>
                 Đóng
