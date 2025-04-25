@@ -11,9 +11,18 @@ function DesignLibrary() {
   const navigate = useNavigate();
   const [savedDesigns, setSavedDesigns] = useState(JSON.parse(localStorage.getItem('savedDesigns') || '[]'));
   const [selectedDesign, setSelectedDesign] = useState(null);
+  const [additionalServices, setAdditionalServices] = useState([]);
+  const [tempTotalCost, setTempTotalCost] = useState(0);
 
   const handleViewDesign = (design) => {
     setSelectedDesign(design);
+    setAdditionalServices(design.data.services?.manual || []);
+    // Calculate initial total cost
+    const autoCost =
+      Object.values(design.data.services?.auto?.colors || {}).reduce((sum, service) => sum + service.amount, 0) +
+      Object.values(design.data.services?.auto?.textures || {}).reduce((sum, service) => sum + service.amount, 0);
+    const manualCost = (design.data.services?.manual || []).reduce((sum, service) => sum + service.amount, 0);
+    setTempTotalCost(autoCost + manualCost);
   };
 
   const handleEditDesign = (design) => {
@@ -22,6 +31,8 @@ function DesignLibrary() {
 
   const handleClosePopup = () => {
     setSelectedDesign(null);
+    setAdditionalServices([]);
+    setTempTotalCost(0);
   };
 
   const handleDeleteDesign = (id) => {
@@ -33,6 +44,48 @@ function DesignLibrary() {
         setSelectedDesign(null);
       }
     }
+  };
+
+  const handleServiceToggle = (service) => {
+    const isSelected = additionalServices.some((s) => s.serviceId === service.id);
+    let updatedServices;
+    if (isSelected) {
+      updatedServices = additionalServices.filter((s) => s.serviceId !== service.id);
+    } else {
+      updatedServices = [
+        ...additionalServices,
+        { serviceId: service.id, serviceName: service.serviceName, amount: service.currentAmount },
+      ];
+    }
+    setAdditionalServices(updatedServices);
+
+    // Update temporary total cost
+    const autoCost =
+      Object.values(selectedDesign.data.services?.auto?.colors || {}).reduce((sum, service) => sum + service.amount, 0) +
+      Object.values(selectedDesign.data.services?.auto?.textures || {}).reduce((sum, service) => sum + service.amount, 0);
+    const manualCost = updatedServices.reduce((sum, service) => sum + service.amount, 0);
+    setTempTotalCost(autoCost + manualCost);
+  };
+
+  const handleSaveServices = () => {
+    const updatedDesign = {
+      ...selectedDesign,
+      data: {
+        ...selectedDesign.data,
+        services: {
+          auto: selectedDesign.data.services.auto,
+          manual: additionalServices,
+        },
+        totalCost: tempTotalCost,
+      },
+    };
+    const updatedDesigns = savedDesigns.map((design) =>
+      design.id === selectedDesign.id ? updatedDesign : design
+    );
+    setSavedDesigns(updatedDesigns);
+    localStorage.setItem('savedDesigns', JSON.stringify(updatedDesigns));
+    setSelectedDesign(updatedDesign);
+    alert('Đã cập nhật dịch vụ cho thiết kế!');
   };
 
   const recreatedTextures = useMemo(() => {
@@ -80,6 +133,10 @@ function DesignLibrary() {
               <h3 className="text-lg font-semibold">Thiết kế #{design.id}</h3>
               <p className="text-sm text-gray-600">Ngày tạo: {new Date(design.timestamp).toLocaleString()}</p>
               <p className="text-sm text-gray-600">Mô hình: {design.data.model}</p>
+              <p className="text-sm text-gray-600">
+                Nhà sản xuất: {design.data.manufacturer?.name || 'Không xác định'}
+              </p>
+              <p className="text-sm text-gray-600">Tổng chi phí: {design.data.totalCost || 0} VND</p>
               <div className="mt-2 flex gap-2">
                 <button
                   className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
@@ -107,10 +164,57 @@ function DesignLibrary() {
 
       {selectedDesign && (
         <div className="popup-overlay">
-          <div className="popup-content" style={{ width: '400px', height: '400px' }}>
+          <div className="popup-content" style={{ width: '500px', height: '700px' }}>
             <h3 className="text-xl font-bold mb-2">Thiết kế #{selectedDesign.id}</h3>
+            <p className="text-sm text-gray-600">
+              Nhà sản xuất: {selectedDesign.data.manufacturer?.name || 'Không xác định'}
+            </p>
+            <p className="text-sm text-gray-600">Tổng chi phí: {tempTotalCost} VND</p>
+            <p className="text-sm text-gray-600">Dịch vụ tự động áp dụng:</p>
+            <ul className="text-sm text-gray-600 mb-2">
+              {Object.entries(selectedDesign.data.services?.auto?.colors || {}).map(([component, service]) => (
+                <li key={component}>
+                  {component}: {service.serviceName} - {service.amount} VND
+                </li>
+              ))}
+              {Object.entries(selectedDesign.data.services?.auto?.textures || {}).map(([component, service]) => (
+                <li key={component}>
+                  {component}: {service.serviceName} - {service.amount} VND
+                </li>
+              ))}
+              {Object.keys(selectedDesign.data.services?.auto?.colors || {}).length === 0 &&
+                Object.keys(selectedDesign.data.services?.auto?.textures || {}).length === 0 && (
+                  <li>Không có dịch vụ tự động.</li>
+                )}
+            </ul>
+            <p className="text-sm text-gray-600">Dịch vụ bổ sung:</p>
+            <div className="services-selector">
+              {(selectedDesign.data.manufacturer?.services || [])
+                .filter(
+                  (service) =>
+                    service.serviceName !== 'Thay đổi màu sắc theo yêu cầu' &&
+                    service.serviceName !== 'Thay đổi hình ảnh theo yêu cầu'
+                )
+                .map((service) => (
+                  <div key={service.id} className="service-item">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={additionalServices.some((s) => s.serviceId === service.id)}
+                        onChange={() => handleServiceToggle(service)}
+                      />
+                      {service.serviceName} - {service.currentAmount} VND
+                    </label>
+                  </div>
+                ))}
+              {(selectedDesign.data.manufacturer?.services || []).filter(
+                (service) =>
+                  service.serviceName !== 'Thay đổi màu sắc theo yêu cầu' &&
+                  service.serviceName !== 'Thay đổi hình ảnh theo yêu cầu'
+              ).length === 0 && <p>Không có dịch vụ bổ sung nào khả dụng.</p>}
+            </div>
             <Canvas
-              style={{ width: '100%', height: '300px' }}
+              style={{ width: '100%', height: '400px' }}
               camera={{ fov: 5, position: [0, 0, 4], near: 0.1, far: 100 }}
             >
               <ambientLight intensity={0.5} />
@@ -140,6 +244,9 @@ function DesignLibrary() {
               <Environment preset="city" />
             </Canvas>
             <div className="popup-buttons mt-4">
+              <button className="save-btn" onClick={handleSaveServices}>
+                Lưu Dịch Vụ
+              </button>
               <button className="close-btn" onClick={handleClosePopup}>
                 Đóng
               </button>

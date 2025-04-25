@@ -6,16 +6,30 @@ import { HokaMug } from './HokaMug';
 import * as THREE from 'three';
 import '../style.css';
 import { useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
 
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const preloadedDesign = location.state?.designData || null;
 
+  // State for manufacturers and services
+  const [manufacturers, setManufacturers] = useState([]);
+  const [selectedManufacturer, setSelectedManufacturer] = useState(preloadedDesign?.manufacturer || null);
+  const [totalCost, setTotalCost] = useState(preloadedDesign?.totalCost || 0);
+  const [appliedServices, setAppliedServices] = useState(preloadedDesign?.services?.auto || { colors: {}, textures: {} });
+
+  // State for design and model
   const [selectedModel, setSelectedModel] = useState(preloadedDesign?.model || 'Adidas');
   const [customTexture, setCustomTexture] = useState(null);
   const [designData, setDesignData] = useState(
-    preloadedDesign || { model: 'Adidas', colors: {}, textures: {} }
+    preloadedDesign || {
+      model: 'Adidas',
+      colors: {},
+      textures: {},
+      services: { auto: { colors: {}, textures: {} }, manual: [] },
+      originalColors: {},
+    }
   );
   const [showPopup, setShowPopup] = useState(false);
 
@@ -45,6 +59,12 @@ function App() {
 
   const components = selectedModel === 'Adidas' ? adidasComponents : hokaComponents;
 
+  // Define original colors (based on Mug.js and HokaMug.js defaults)
+  const originalColors = components.reduce((acc, comp) => {
+    acc[comp.value] = '#ffffff';
+    return acc;
+  }, {});
+
   const [selectedComponentIndex, setSelectedComponentIndex] = useState(0);
   const [updatePartColor, setUpdatePartColor] = useState(() => () => {});
   const [updatePartTexture, setUpdatePartTexture] = useState(() => () => {});
@@ -62,6 +82,96 @@ function App() {
   ];
   const [selectedColor, setSelectedColor] = useState(colors[0].value);
 
+  // Fetch manufacturers
+  useEffect(() => {
+    axios
+      .get('https://localhost:7080/api/Manufacturer', {
+        headers: { Accept: '*/*' },
+      })
+      .then((response) => {
+        if (response.data.code === 200) {
+          setManufacturers(response.data.data);
+          if (preloadedDesign?.manufacturer) {
+            const validManufacturer = response.data.data.find(
+              (m) => m.id === preloadedDesign.manufacturer.id && m.status === 'Active'
+            );
+            setSelectedManufacturer(validManufacturer || null);
+          }
+        }
+      })
+      .catch((error) => {
+        console.error('Error fetching manufacturers:', error);
+        alert('Không thể tải danh sách nhà sản xuất. Vui lòng thử lại.');
+      });
+  }, []);
+
+  // Update originalColors in designData when model changes
+  useEffect(() => {
+    setDesignData((prev) => ({
+      ...prev,
+      originalColors,
+    }));
+  }, [selectedModel]);
+
+  // Handle manufacturer selection
+  const handleManufacturerChange = (e) => {
+    const manufacturerId = parseInt(e.target.value);
+    const selected = manufacturers.find((m) => m.id === manufacturerId);
+    setSelectedManufacturer(selected);
+    setAppliedServices({ colors: {}, textures: {} });
+    setTotalCost(preloadedDesign?.totalCost || 0); // Preserve total cost if editing
+  };
+
+  // Update total cost based on applied services (color and texture)
+  const updateTotalCost = () => {
+    const colorCost = Object.values(appliedServices.colors).reduce((sum, service) => sum + service.amount, 0);
+    const textureCost = Object.values(appliedServices.textures).reduce((sum, service) => sum + service.amount, 0);
+    const manualCost = (designData.services.manual || []).reduce((sum, service) => sum + service.amount, 0);
+    setTotalCost(colorCost + textureCost + manualCost);
+  };
+
+  // Handle color change with service application
+  const handleColorClick = (colorValue) => {
+    setSelectedColor(colorValue);
+    updatePartColor(colorValue);
+
+    const component = components[selectedComponentIndex].value;
+    const originalColor = originalColors[component];
+    const colorChangeService = selectedManufacturer?.services.find(
+      (s) => s.serviceName === 'Thay đổi màu sắc theo yêu cầu'
+    );
+
+    if (colorChangeService) {
+      setAppliedServices((prev) => {
+        const newServices = { ...prev };
+        if (colorValue !== originalColor) {
+          newServices.colors[component] = {
+            serviceId: colorChangeService.id,
+            serviceName: colorChangeService.serviceName,
+            amount: colorChangeService.currentAmount,
+          };
+        } else {
+          delete newServices.colors[component];
+        }
+        return newServices;
+      });
+
+      const newAppliedServices = { ...appliedServices };
+      if (colorValue !== originalColor) {
+        newAppliedServices.colors[component] = {
+          serviceId: colorChangeService.id,
+          serviceName: colorChangeService.serviceName,
+          amount: colorChangeService.currentAmount,
+        };
+      } else {
+        delete newAppliedServices.colors[component];
+      }
+
+      setAppliedServices(newAppliedServices);
+      updateTotalCost();
+    }
+  };
+
   const handleTextureUpload = (event) => {
     const file = event.target.files[0];
     if (file && file.type.startsWith('image/')) {
@@ -74,14 +184,28 @@ function App() {
           texture.flipY = false;
           texture.encoding = THREE.sRGBEncoding;
           texture.needsUpdate = true;
-          console.log('Texture uploaded:', texture);
           setCustomTexture({ texture, fileName: file.name, dataURL: e.target.result });
           updatePartTexture(components[selectedComponentIndex].value, texture);
+
+          // Apply texture change service
+          const component = components[selectedComponentIndex].value;
+          const textureChangeService = selectedManufacturer?.services.find(
+            (s) => s.serviceName === 'Thay đổi hình ảnh theo yêu cầu'
+          );
+
+          if (textureChangeService) {
+            setAppliedServices((prev) => {
+              const newServices = { ...prev };
+              newServices.textures[component] = {
+                serviceId: textureChangeService.id,
+                serviceName: textureChangeService.serviceName,
+                amount: textureChangeService.currentAmount,
+              };
+              return newServices;
+            });
+            updateTotalCost();
+          }
         };
-      };
-      reader.onerror = () => {
-        console.error('Error reading file');
-        alert('Không thể đọc file hình ảnh. Vui lòng thử lại.');
       };
       reader.readAsDataURL(file);
     } else {
@@ -93,11 +217,15 @@ function App() {
     updatePartTexture(components[selectedComponentIndex].value, null);
     setCustomTexture(null);
     console.log('Texture removed for:', components[selectedComponentIndex].value);
-  };
 
-  const handleColorClick = (colorValue) => {
-    setSelectedColor(colorValue);
-    updatePartColor(colorValue);
+    // Remove texture change service
+    const component = components[selectedComponentIndex].value;
+    setAppliedServices((prev) => {
+      const newServices = { ...prev };
+      delete newServices.textures[component];
+      return newServices;
+    });
+    updateTotalCost();
   };
 
   const handleColorChange = (updateFunc) => {
@@ -127,33 +255,62 @@ function App() {
         model: selectedModel,
         colors: data.colors || prev.colors,
         textures: newTextures,
+        services: { auto: appliedServices, manual: designData.services.manual || [] },
+        originalColors,
       };
     });
   };
 
   const saveDesign = () => {
+    if (!selectedManufacturer) {
+      alert('Vui lòng chọn một nhà sản xuất trước khi lưu thiết kế.');
+      return;
+    }
     const savedDesigns = JSON.parse(localStorage.getItem('savedDesigns') || '[]');
+    let designId = preloadedDesign?.id || (savedDesigns.length + 1);
+    const existingDesignIndex = savedDesigns.findIndex((design) => design.id === designId);
+
     const newDesign = {
-      id: savedDesigns.length + 1,
+      id: designId,
       timestamp: new Date().toISOString(),
-      data: designData,
+      data: {
+        ...designData,
+        manufacturer: selectedManufacturer,
+        totalCost,
+      },
     };
-    savedDesigns.push(newDesign);
+
+    if (existingDesignIndex !== -1) {
+      // Overwrite existing design
+      savedDesigns[existingDesignIndex] = newDesign;
+    } else {
+      // Add new design
+      savedDesigns.push(newDesign);
+    }
+
     localStorage.setItem('savedDesigns', JSON.stringify(savedDesigns));
     navigate('/library');
   };
 
   const handleComplete = () => {
+    if (!selectedManufacturer) {
+      alert('Vui lòng chọn một nhà sản xuất trước khi hoàn thành.');
+      return;
+    }
     setShowPopup(true);
   };
 
   const handleCopyDesignData = () => {
-    const output = JSON.stringify(designData, (key, value) => {
-      if (value instanceof THREE.Texture) {
-        return { fileName: customTexture?.fileName || 'unknown', dataURL: customTexture?.dataURL };
-      }
-      return value;
-    }, 2);
+    const output = JSON.stringify(
+      { ...designData, manufacturer: selectedManufacturer, totalCost },
+      (key, value) => {
+        if (value instanceof THREE.Texture) {
+          return { fileName: customTexture?.fileName || 'unknown', dataURL: customTexture?.dataURL };
+        }
+        return value;
+      },
+      2
+    );
     navigator.clipboard.writeText(output).then(() => {
       alert('Design data copied to clipboard!');
     }).catch((err) => {
@@ -182,6 +339,35 @@ function App() {
 
   return (
     <div className="container">
+      {/* Manufacturer Selection */}
+      <div className="manufacturer-selector">
+        <label htmlFor="manufacturer-select">Chọn Nhà Sản Xuất:</label>
+        <select
+          id="manufacturer-select"
+          onChange={handleManufacturerChange}
+          value={selectedManufacturer?.id || ''}
+          disabled={!manufacturers.length}
+        >
+          <option value="" disabled>
+            Chọn nhà sản xuất
+          </option>
+          {manufacturers.map((manufacturer) => (
+            <option
+              key={manufacturer.id}
+              value={manufacturer.id}
+              disabled={manufacturer.status === 'Inactive'}
+            >
+              {manufacturer.name} {manufacturer.status === 'Inactive' ? '(Không khả dụng)' : ''}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Total Cost Display */}
+      <div className="total-cost">
+        <h4>Tổng Chi Phí: {totalCost} VND</h4>
+      </div>
+
       <div className="model-selector">
         <button
           className={selectedModel === 'Adidas' ? 'active' : ''}
@@ -220,11 +406,15 @@ function App() {
       </div>
 
       <div className="navigation-container">
-        <button className="nav-arrow" onClick={handlePrevComponent}>←</button>
+        <button className="nav-arrow" onClick={handlePrevComponent}>
+          ←
+        </button>
         <span className="nav-label">
           {components[selectedComponentIndex].name} {selectedComponentIndex + 1}/{components.length}
         </span>
-        <button className="nav-arrow" onClick={handleNextComponent}>→</button>
+        <button className="nav-arrow" onClick={handleNextComponent}>
+          →
+        </button>
       </div>
 
       <div className="texture-upload">
@@ -302,12 +492,16 @@ function App() {
             <h3>Design Data</h3>
             <textarea
               readOnly
-              value={JSON.stringify(designData, (key, value) => {
-                if (value instanceof THREE.Texture) {
-                  return { fileName: customTexture?.fileName || 'unknown', dataURL: customTexture?.dataURL };
-                }
-                return value;
-              }, 2)}
+              value={JSON.stringify(
+                { ...designData, manufacturer: selectedManufacturer, totalCost },
+                (key, value) => {
+                  if (value instanceof THREE.Texture) {
+                    return { fileName: customTexture?.fileName || 'unknown', dataURL: customTexture?.dataURL };
+                  }
+                  return value;
+                },
+                2
+              )}
               rows={15}
               style={{ width: '100%', fontFamily: 'monospace', resize: 'none' }}
             />
